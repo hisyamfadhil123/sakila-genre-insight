@@ -1,0 +1,74 @@
+body {
+  font-family: "Segoe UI", sans-serif;
+  background-color: #f4f6f9;
+  color: #2c3e50;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+/* Container utama biar kayak laporan profesional */
+div.container {
+  max-width: 1100px;
+  margin: 30px auto;
+  padding: 30px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+}
+
+/* Heading lebih modern */
+h1 {
+  color: #1f4e79;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+h2 {
+  color: #1f4e79;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 6px;
+  margin-top: 25px;
+}
+
+h3 {
+  color: #2c3e50;
+}
+
+/* Tabel lebih clean */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th {
+  background-color: #1f4e79;
+  color: white;
+  padding: 12px;
+  text-align: left;
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Hover efek biar modern */
+tr:hover {
+  background-color: #f1f6fb;
+  transition: 0.2s;
+}
+
+/* Link kalau ada */
+a {
+  color: #1f4e79;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}

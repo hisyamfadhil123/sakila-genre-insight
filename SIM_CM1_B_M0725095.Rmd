@@ -1,0 +1,300 @@
+---
+title: "Analisis Perbandingan Pendapatan dan Frekuensi Rental Film Berdasarkan Genre di Database Sakila"
+author: "Hisyam Fadhil Ilyasa"
+date: "`2026-05-15`"
+
+output:
+  html_document:
+    theme: spacelab
+    highlight: textmate
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    code_folding: hide
+    css: style.css
+---
+<article class="box">
+  <h2>Pendahuluan</h2>
+  <p>
+    <strong>Database Sakila</strong> adalah basis data sampel fiktif yang dirancang khusus untuk mensimulasikan sistem operasional toko penyewaan DVD. Dikembangkan oleh MySQL, database ini digunakan secara luas sebagai standar materi latihan, tutorial, dan demonstrasi pengujian perintah SQL. Di dalamnya terdapat struktur tabel yang saling berelasi secara kompleks (ternormalisasi), mencakup data film, aktor, kategori, pelanggan, inventaris toko, hingga log transaksi penyewaan dan pembayaran.
+  </p>
+  
+  <hr>
+  
+  <h3>Tujuan Analisis</h3>
+  <ol>
+    <li>Mengidentifikasi genre film yang menghasilkan pendapatan total tertinggi.</li>
+    <li>Mengidentifikasi genre film dengan frekuensi rental (popularitas) paling tinggi.</li>
+    <li>Menganalisis hubungan (korelasi) antara tingkat popularitas genre dengan profitabilitas yang dihasilkan.</li>
+  </ol>
+  
+  <hr>
+  
+  <h3>Alasan Pemilihan Insight</h3>
+  <p>
+    Analisis komparatif antara pendapatan dan frekuensi rental berdasarkan genre ini dipilih untuk memetakan dinamika antara <strong>selera pasar (popularitas)</strong> dan <strong>kontribusi finansial (pendapatan)</strong>. Melalui insight ini, manajemen operasional dapat memahami apakah genre yang paling sering dicari pelanggan otomatis menjadi komoditas yang paling menguntungkan, atau justru terdapat genre tertentu yang memiliki efisiensi nilai sewa yang lebih tinggi.
+  </p>
+</article>
+
+<article class="box">
+  <h2>Rumusan Pertanyaan Analisis</h2>
+  <p>
+1. Genre film apa dengan pendapatan tertinggi?
+
+2. Genre film apa yang paling sering dirental?
+
+3. Apakah genre populer selalu yang paling menguntungkan?
+  </p>
+</article>
+
+<article class="box">
+  <h2>Deskripsi Dataset</h2>
+  <p>
+Dataset yang digunakan adalah Sakila, yaitu sebuah database simulasi operasional rental DVD yang disediakan oleh MySQL (Oracle Corporation). Analisis ini mengintegrasikan data dari beberapa tabel yang saling berelasi, yaitu <strong>category</strong>, <strong>film_category</strong>, <strong>film</strong>, <strong>inventory</strong>, <strong>rental</strong>, dan <strong>payment</strong>. Penggabungan tabel-tabel ini dilakukan untuk memetakan hubungan antara frekuensi penyewaan film dengan total pendapatan yang dihasilkan pada setiap genre film.
+</p>
+</article>
+```{r, warning=FALSE}
+library(DBI)
+library(RMySQL)
+library(ggplot2)
+library(knitr)
+
+con <- dbConnect(RMySQL::MySQL(),
+                 dbname = "sakila",
+                 host = "localhost",
+                 port = 3306,
+                 user = "root",
+                 password = "abegeboga")
+
+query <- "
+SELECT c.name AS genre,
+       SUM(p.amount) AS total_pendapatan,
+       COUNT(r.rental_id) AS jumlah_rental
+FROM category c
+JOIN film_category fc ON c.category_id = fc.category_id
+JOIN film f ON fc.film_id = f.film_id
+JOIN inventory i ON f.film_id = i.film_id
+JOIN rental r ON i.inventory_id = r.inventory_id
+JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY c.name
+ORDER BY total_pendapatan DESC;
+"
+
+data_genre <- dbGetQuery(con, query)
+
+invisible(dbDisconnect(con))
+
+kable(data_genre, caption = "Pendapatan & Jumlah Rental per Genre Film")
+
+```
+
+
+<article class="box">
+  <h2>Visualisasi Data dan Interpretasi</h2>
+  
+<hr>
+  <h3> 1. Grafik Batang Total Pendapatan</h3>
+```{r}
+library(ggplot2)
+library(scales)
+
+ggplot(data_genre, 
+       aes(x = reorder(genre, total_pendapatan), 
+           y = total_pendapatan, 
+           fill = total_pendapatan)) +
+  
+  geom_col(show.legend = FALSE, alpha = 0.9, width = 0.8) + 
+  
+  # Label angka dengan simbol $
+  geom_text(aes(label = dollar(total_pendapatan)), 
+            hjust = -0.1,
+            size = 3.5,
+            fontface = "bold",
+            color = "grey20") +
+  
+  coord_flip(clip = "off") +
+  
+  scale_fill_gradient(low = "#6baed6", high = "#084594") +
+  
+  # Format sumbu Y jadi $
+  scale_y_continuous(
+    labels = dollar_format(),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
+  
+  labs(title = "Total Pendapatan Berdasarkan Genre Film",
+       caption = "Data Source: Sakila Database",
+       x = NULL,
+       y = "Total Pendapatan (USD)") +
+  
+  theme_minimal(base_size = 13) +
+  
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "grey40", margin = margin(b = 15)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(face = "bold"),
+    plot.margin = margin(20, 40, 20, 20)
+  )
+```
+<p>
+Grafik menunjukkan bahwa genre <strong>Sports</strong> menempati posisi teratas dengan total pendapatan sekitar USD <strong>USD 5.314,21</strong>, jauh melampaui genre lain. Data tersebut menunjukkan bahwa film bergenre olahraga paling banyak menghasilkan pemasukan dari transaksi rental.
+</p>
+<p>
+Genre lain yang juga memiliki pendapatan tinggi adalah <strong>Sci-Fi</strong> (USD 4.756,98) dan <strong>Animation</strong> (USD 4.656,30). Sementara itu, genre dengan pendapatan terendah adalah <strong>Music</strong> (USD 3.417,72), diikuti oleh Travel (USD 3.549,64) dan Classics (USD 3.639,59).
+</p>
+<p>
+Jadi, genre film dengan pendapatan tertinggi adalah Sports dengan total sekitar USD 5.314,21
+</p>
+
+<hr>
+  <h3> 2. Grafik Batang Jumlah Rental</h3>
+
+```{r}
+library(ggplot2)
+library(scales)
+
+ggplot(data_genre, 
+       aes(x = reorder(genre, jumlah_rental), 
+           y = jumlah_rental, 
+           fill = jumlah_rental)) +
+  
+  geom_col(show.legend = FALSE, alpha = 0.9, width = 0.8) + 
+  
+  # Label jumlah rental
+  geom_text(aes(label = comma(jumlah_rental)), 
+            hjust = -0.1,
+            size = 3.5,
+            fontface = "bold",
+            color = "grey20") +
+  
+  coord_flip(clip = "off") +
+  
+  scale_fill_gradient(low = "#d8c8f2", high = "#4b0082") +
+  
+  scale_y_continuous(
+    labels = comma_format(),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
+  
+  labs(title = "Jumlah Rental Berdasarkan Genre Film",
+       caption = "Data Source: Sakila Database",
+       x = NULL,
+       y = "Jumlah Rental") +
+  
+  theme_minimal(base_size = 13) +
+  
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "grey40", margin = margin(b = 15)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(face = "bold"),
+    plot.margin = margin(20, 40, 20, 20)
+  )
+```
+<p>
+Data pada grafik menunjukkan bahwa genre <strong>Sports</strong> memiliki jumlah rental tertinggi, yaitu <strong>1.179 kali</strong>, sehingga menjadi genre yang paling diminati. Data tersebut menunjukkan bahwa film bergenre olahraga paling banyak diminati dalam transaksi rental.
+</p>
+<p>
+Genre lain yang juga memiliki jumlah rental tinggi adalah <strong>Animation</strong> (1.166 kali) dan <strong>Action</strong> (1.112 kali). Sementara itu, genre dengan jumlah rental terendah adalah Music (830 kali), diikuti oleh Travel (837 kali) dan Horror (846 kali).”
+</p>
+<p>
+Jadi, genre film yang paling sering dirental adalah Sports dengan jumlah rental sebanyak 1.179 kali. 
+</p>
+
+<hr>
+  <h3> 3. Diagram Sebar Popularitas dan Pendapatan Genre Film</h3>
+ 
+```{r}
+library(ggrepel)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+
+ggplot(data_genre,
+       aes(x = jumlah_rental,
+           y = total_pendapatan,
+           size = total_pendapatan,
+           color = jumlah_rental)) +
+  
+  geom_point(alpha = 0.85) +
+  
+  # Label anti tumpuk
+  geom_text_repel(aes(label = genre),
+                  size = 3.8,
+                  fontface = "bold",
+                  max.overlaps = Inf,
+                  box.padding = 0.5,
+                  point.padding = 0.4,
+                  segment.color = "grey60") +
+  
+  
+  scale_color_gradient(low = "#74c476", high = "#00441b") +
+  
+  scale_y_continuous(labels = dollar_format()) +
+  
+  scale_size(range = c(2, 6), guide = "none")  +
+  
+  labs(title = "Hubungan Popularitas dan Pendapatan Genre Film",
+       caption = "Data Source: Sakila Database",
+       x = "Jumlah Rental",
+       y = "Total Pendapatan (USD)",
+       color = "Jumlah Rental") +
+  
+  theme_minimal(base_size = 13) +
+  
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "grey40",
+                                 margin = margin(b = 15)),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "grey20")
+  )
+```
+<p>
+Scatter plot menunjukkan adanya hubungan positif antara jumlah rental dan total pendapatan tiap genre film. Genre Sports menempati posisi teratas dengan jumlah rental tertinggi (1.179 kali) sekaligus pendapatan terbesar (USD 5.314,21), sehingga dapat disimpulkan bahwa film bergenre olahraga bukan hanya paling populer tetapi juga paling menguntungkan. Genre lain yang juga memiliki performa tinggi adalah Animation (1.166 kali; USD 4.656,30) dan Sci-Fi (1.101 kali; USD 4.756,98). 
+</p>
+<p>
+Jadi, genre populer tidak selalu yang paling menguntungkan. Scatter plot memang menunjukkan adanya korelasi positif antara jumlah rental dan pendapatan, tetapi tidak semua genre dengan rental tinggi menghasilkan pendapatan tertinggi.
+</p>
+</article>
+
+<article class="box">
+ <h2>Persamaan Matematis (LaTeX)</h2>
+ <p>
+Perhitungan data dalam analisis ini didasarkan pada tiga metrik utama yang diformulasikan sebagai berikut:
+
+1. **Total Pendapatan per Genre ($P_g$):**
+Akumulasi dari seluruh nominal pembayaran ($amount$) yang tercatat pada genre tertentu.
+$$P_g = \sum amount$$
+
+2. **Total Frekuensi Rental ($R_g$):**
+Jumlah total transaksi penyewaan yang terjadi untuk seluruh film dalam suatu genre.
+$$R_g = \sum rental$$
+
+3. **Rata-rata Pendapatan per Rental ($\bar{x}$):**
+Untuk melihat efisiensi nilai ekonomi setiap kali sebuah film disewa, digunakan perbandingan antara total pendapatan dengan jumlah rental:
+$$\bar{x} = \frac{P_g}{R_g}$$
+
+*Persamaan ketiga ini membantu menjelaskan mengapa genre dengan jumlah rental sedang bisa memiliki pendapatan yang hampir menyamai genre populer, yang biasanya disebabkan oleh tarif sewa atau durasi sewa yang lebih tinggi pada genre tersebut.*
+</p>
+</article>
+
+<article class="box">
+  <h2>Kesimpulan</h2>
+  <p>
+Berdasarkan hasil analisis data dan visualisasi dari Database Sakila, dapat ditarik beberapa kesimpulan utama sebagai berikut:
+
+1. **Genre dengan Pendapatan Tertinggi:** Genre **Sports** merupakan penyumbang pendapatan terbesar bagi bisnis rental dengan total perolehan mencapai **USD 5.314,21**. Genre ini diikuti oleh Sci-Fi (USD 4.756,98) dan Animation (USD 4.656,30).
+
+2. **Genre Paling Populer (Sering Dirental):** Genre **Sports** kembali mendominasi sebagai genre yang paling sering disewa oleh pelanggan, yaitu sebanyak **1.179 kali**. Posisi berikutnya ditempati oleh Animation (1.166 kali) dan Action (1.112 kali).
+
+3. **Hubungan Popularitas dan Keuntungan:** Secara umum, terdapat hubungan atau korelasi positif yang kuat antara popularitas suatu genre (jumlah rental) dengan pendapatan yang dihasilkan. Semakin tinggi frekuensi rental suatu genre, maka pendapatannya pun cenderung semakin besar.
+
+4. **Perbedaan Pendapatan:** Meskipun berkorelasi positif, popularitas tinggi tidak selalu mutlak menjamin keuntungan tertinggi. Hal ini dibuktikan melalui rumus rata-rata pendapatan per rental ($\bar{x}$). Sebagai contoh, genre **Sci-Fi** memiliki jumlah rental yang lebih sedikit dibandingkan Animation, namun mampu menghasilkan total pendapatan yang lebih besar. Hal ini menunjukkan adanya faktor eksternal seperti rata-rata tarif sewa per film yang lebih mahal atau durasi peminjaman yang lebih optimal pada genre tertentu.
+</p>
+</article>
